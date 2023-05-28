@@ -1,0 +1,108 @@
+---
+version: '3.5'
+services:
+
+  database:
+    image: mysql:8
+    container_name: mysql-zabbix
+    restart: always
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql_zabbix:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=4NLugWesLrdnKTZ
+      - MYSQL_DATABASE=zabbixdb
+      - MYSQL_USER=zabbix_user
+      - MYSQL_PASSWORD=4NLugWesLrd#nKTZ
+    command: 
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8
+      - --collation-server=utf8_bin
+      - --collation-server=utf8_bin
+    networks:
+      - zabbix_net
+
+  snmp:
+    image: zabbix/zabbix-snmptraps:alpine-6.4.2
+    container_name: zabbix-snmptraps
+    restart: always
+    ports:
+      - 162:1162/udp
+    volumes:
+      - snmptraps:/var/lib/zabbix/snmptraps:rw
+      - ./zbx_env/var/lib/zabbix/mibs:/var/lib/zabbix/mibs:ro
+    networks:
+      - zabbix_net
+
+  java-gtw:
+    image: zabbix/zabbix-java-gateway:alpine-6.4.2
+    container_name: zabbix-java
+    restart: always
+    ports:
+      - 10052:10052
+    networks:
+      - zabbix_net
+
+  server:
+    image: zabbix/zabbix-server-mysql:alpine-6.4.2
+    container_name: zabbix-server
+    restart: always
+    ports:
+      - 10051:10051
+    volumes:
+      - ./zbx_env/usr/lib/zabbix/alertscripts:/usr/lib/zabbix/alertscripts:ro
+      - ./zbx_env/usr/lib/zabbix/externalscripts:/usr/lib/zabbix/externalscripts:ro
+      - ./zbx_env/var/lib/zabbix/dbscripts:/var/lib/zabbix/dbscripts:ro
+      - ./zbx_env/var/lib/zabbix/export:/var/lib/zabbix/export:rw
+      - ./zbx_env/var/lib/zabbix/modules:/var/lib/zabbix/modules:ro
+      - ./zbx_env/var/lib/zabbix/enc:/var/lib/zabbix/enc:ro
+      - ./zbx_env/var/lib/zabbix/ssh_keys:/var/lib/zabbix/ssh_keys:ro
+      - ./zbx_env/var/lib/zabbix/mibs:/var/lib/zabbix/mibs:ro
+      - snmptraps:/var/lib/zabbix/snmptraps:rw
+    environment:
+      - DB_SERVER_HOST=mysql-zabbix
+      - DB_SERVER_PORT=3306
+      - MYSQL_ROOT_PASSWORD=4NLugWesLrdnKTZ
+      - MYSQL_DATABASE=zabbixdb
+      - MYSQL_USER=zabbix_user
+      - MYSQL_PASSWORD=4NLugWesLrd#nKTZ
+      - ZBX_ENABLE_SNMP_TRAPS=true
+      - ZBX_JAVAGATEWAY_ENABLE=true
+      - ZBX_STARTJAVAPOLLERS=5
+    networks:
+      - zabbix_net
+    command: --volumes-from zabbix-snmptraps
+    depends_on:
+      - database
+      - snmp
+      - java-gtw
+  web:
+    image: zabbix/zabbix-web-nginx-mysql:alpine-6.4.2
+    container_name: zabbix-web
+    restart: always
+    ports:
+      - 8080:8080
+      - 8443:8443
+    environment:
+      - ZBX_SERVER_HOST=zabbix-server
+      - DB_SERVER_HOST=mysql-zabbix
+      - DB_SERVER_PORT=3306
+      - MYSQL_ROOT_PASSWORD=4NLugWesLrdnKTZ
+      - MYSQL_DATABASE=zabbixdb
+      - MYSQL_USER=zabbix_user
+      - MYSQL_PASSWORD=4NLugWesLrd#nKTZ
+      - PHP_TZ="America/Sao_Paulo"
+    networks:
+      - zabbix_net
+    depends_on:
+      - server
+      - database
+      - snmp
+      - java-gtw
+networks:
+  zabbix_net:
+    driver: bridge
+volumes:
+  mysql_zabbix:
+  snmptraps:
