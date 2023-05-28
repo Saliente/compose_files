@@ -100,6 +100,19 @@ services:
       - database
       - snmp
       - java-gtw
+  agent:
+    image: zabbix/zabbix-agent:alpine-6.4.2
+    container_name: zabbix-agent
+    restart: always
+    privileged: true
+    ports:
+      - 10050:10050
+    environment:
+      - ZBX_SERVER_HOST=zabbix-server
+      - ZBX_ACTIVE_ALLOW=true
+      - ZBX_HOSTNAME=SAL-CNTR-ZBX-001
+    networks:
+      - zabbix_net
 networks:
   zabbix_net:
     driver: bridge
